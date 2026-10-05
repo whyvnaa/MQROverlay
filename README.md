@@ -9,9 +9,11 @@ character), and the map data in `data/`. It does not touch the game, its files o
 
 ## Install and run
 
-**Download**: the zip from the [latest release](https://github.com/whyvnaa/MQROverlay/releases/latest) (about
-30 MB), unzip it anywhere and run `mq-overlay.exe`. Windows SmartScreen warns once about an unsigned program:
-"More info", then "Run anyway".
+**Install**: `mq-overlay-…-setup.exe` from the [latest release](https://github.com/whyvnaa/MQROverlay/releases/latest)
+(about 30 MB). It installs for your user only (no administrator), puts MQ Overlay in the Start menu and on the
+desktop, and comes with an uninstaller. Windows SmartScreen warns once about an unsigned program: "More info", then
+"Run anyway". The zip next to it is the same program as a plain folder (run `mq-overlay.exe` inside it), if you'd
+rather not install anything.
 
 **Or with [uv](https://docs.astral.sh/uv/)** (it brings its own Python), in any terminal:
 
@@ -97,8 +99,8 @@ map right away (works without the game), `--log PATH` reads another log file (th
 `--snapshot out.png` renders the overlay into a PNG and exits (for testing; `--build LEVEL`, `--own`, `--card`,
 `--shop` and more set up the Build tab for it).
 
-Tests: `uv run pytest`. Release zip: `uv run --group build tools/build_exe.py` (PyInstaller; a tag `v*` on GitHub
-builds and attaches it automatically).
+Tests: `uv run pytest`. Release: `uv run --group build tools/build_exe.py --installer` (PyInstaller and Inno
+Setup; a tag `v*` on GitHub builds the installer and the zip and attaches them automatically).
 
 ## Data
 

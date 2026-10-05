@@ -1,6 +1,8 @@
-"""Build the Windows release: dist/mq-overlay/ (a folder with mq-overlay.exe) and dist/mq-overlay-win.zip.
+"""Build the Windows release: dist/mq-overlay/ (a folder with mq-overlay.exe), dist/mq-overlay-win.zip and, with
+--installer, dist/mq-overlay-<version>-setup.exe (Inno Setup, tools/installer.iss: per-user install with a Start
+menu entry, a desktop icon and an uninstaller; what a player downloads).
 
-    uv run --group build tools/build_exe.py [--version 1.2.3]
+    uv run --group build tools/build_exe.py [--version 1.2.3] [--installer]
 
 PyInstaller bundles Python, the overlay, its data and only the Qt modules the overlay uses (Core, Gui, Widgets,
 Svg). What PySide6 ships beyond that (Qt Quick, QML, the designer tools, a 20 MB software-OpenGL DLL, translations,
@@ -8,6 +10,7 @@ SSL) is left out, which takes the folder from about 200 MB to under 80 MB (31 MB
 workflow (.github/workflows/release.yml) runs this on a tag."""
 
 import argparse
+import os
 import shutil
 import subprocess
 import sys
@@ -24,6 +27,7 @@ TRIM = ["_internal/PySide6/opengl32sw.dll", "_internal/PySide6/translations"]
 def main() -> int:
     parser = argparse.ArgumentParser(description="Build mq-overlay.exe and the release zip")
     parser.add_argument("--version", default="", help="goes into the zip's name (mq-overlay-<version>-win.zip)")
+    parser.add_argument("--installer", action="store_true", help="also build the setup exe (needs Inno Setup 6)")
     args = parser.parse_args()
     dist, work = ROOT / "dist", ROOT / "build"
     shutil.rmtree(dist / "mq-overlay", ignore_errors=True)
@@ -56,6 +60,17 @@ def main() -> int:
     name = f"mq-overlay-{args.version}-win" if args.version else "mq-overlay-win"
     archive = shutil.make_archive(str(dist / name), "zip", dist, "mq-overlay")
     print(f"{folder}: {size / 2**20:.0f} MB; {archive}: {Path(archive).stat().st_size / 2**20:.1f} MB")
+    if args.installer:
+        iscc = next((p for p in (Path(os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)")) / "Inno Setup 6" / "ISCC.exe",
+                                 Path(os.environ.get("ProgramFiles", r"C:\Program Files")) / "Inno Setup 6" / "ISCC.exe",
+                                 Path(shutil.which("iscc") or "nowhere")) if p.exists()), None)
+        if iscc is None:
+            raise SystemExit("Inno Setup 6 (ISCC.exe) not found: install it from https://jrsoftware.org/isinfo.php")
+        version = args.version.lstrip("v") or "0.0.0"
+        subprocess.run([str(iscc), f"/DAppVersion={version}", f"/DSourceDir={folder}", f"/DOutputDir={dist}",
+                        f"/DIconFile={icon}", str(ROOT / "tools" / "installer.iss")], check=True)
+        setup = dist / f"mq-overlay-{version}-setup.exe"
+        print(f"{setup}: {setup.stat().st_size / 2**20:.1f} MB")
     return 0
 
 

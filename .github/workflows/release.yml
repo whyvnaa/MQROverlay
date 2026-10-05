@@ -16,12 +16,15 @@ jobs:
       - uses: astral-sh/setup-uv@v5
       - name: Run the tests
         run: uv run --group build pytest -q
-      - name: Build the exe and zip
-        run: uv run --group build tools/build_exe.py --version ${{ github.ref_name }}
+      - name: Build the installer and the zip
+        run: uv run --group build tools/build_exe.py --version ${{ github.ref_name }} --installer
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/mq-overlay-${{ github.ref_name }}-win.zip
+          files: |
+            dist/mq-overlay-*-setup.exe
+            dist/mq-overlay-${{ github.ref_name }}-win.zip
           body: |
-            Unzip and run `mq-overlay.exe` (Windows SmartScreen warns once about an unsigned program: "More info" → "Run anyway").
+            **mq-overlay-…-setup.exe**: the installer (no administrator needed): Start menu entry, desktop icon, uninstaller. Windows SmartScreen warns once about an unsigned program: "More info" → "Run anyway".
+            **mq-overlay-…-win.zip**: the same program as a folder, for a USB stick or if you'd rather not install anything; run `mq-overlay.exe` inside it.
             For your position in the game and your character in the Build tab, install [Npcap](https://npcap.com/#download); the overlay explains the steps at start.
