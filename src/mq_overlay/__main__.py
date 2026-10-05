@@ -7,9 +7,10 @@ from pathlib import Path
 
 from PySide6.QtCore import QTimer
 from PySide6.QtGui import QAction, QFontDatabase, QIcon
-from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
+from PySide6.QtWidgets import QApplication, QFileDialog, QMenu, QSystemTrayIcon
 
 from .data import DATA, GameData
+from .game_launch import find_game, game_running, start_game
 from .game_window import GameWindow
 from .capture import Sniffer
 from .hotkeys import Hotkeys
@@ -26,6 +27,7 @@ def main() -> int:
     parser.add_argument("--zone", help="show this zone instead of following the log (e.g. LV_CRS_Trail01)")
     parser.add_argument("--full", action="store_true", help="open the full-screen map right away")
     parser.add_argument("--no-live", action="store_true", help="don't read the game's traffic for live positions")
+    parser.add_argument("--no-game", action="store_true", help="don't start the game with the overlay")
     parser.add_argument("--snapshot", metavar="PNG", help="render the overlay into a PNG and exit (for testing)")
     parser.add_argument("--mode", choices=["full", "mini"], default="full", help="snapshot mode")
     parser.add_argument("--size", default="1400x900", help="snapshot size, WIDTHxHEIGHT")
@@ -158,6 +160,28 @@ def main() -> int:
     live_action = QAction("Live position: " + ("on" if status == "on" else "set up…"), menu, triggered=setup_live)
     menu.addAction(live_action)
     menu.addSeparator()
+
+    # one click for both: the overlay starts the game (its patcher) unless it already runs
+    game_exe = find_game(settings)
+
+    def set_start_game(on: bool) -> None:
+        settings["start_game"] = on
+        overlay.store_settings()
+
+    def choose_game() -> None:
+        nonlocal game_exe
+        start = str(game_exe.parent if game_exe else Path.home())
+        path, _ = QFileDialog.getOpenFileName(None, "The program that starts the game (Play MQReborn)", start, "Programs (*.exe)")
+        if path:
+            settings["game_exe"], game_exe = path, Path(path)
+            overlay.store_settings()
+            game_action.setText(f"Game: {game_exe.name}")
+    start_action = QAction("Start the game with the overlay", menu, checkable=True, checked=bool(settings["start_game"]))
+    start_action.toggled.connect(set_start_game)
+    game_action = QAction(f"Game: {game_exe.name}" if game_exe else "Choose the game…", menu, triggered=choose_game)
+    game_action.setToolTip("Which program starts the game (found by itself when MQReborn is installed the usual way)")
+    menu.addActions([start_action, game_action])
+    menu.addSeparator()
     menu.addAction(quit_)
     tray.setContextMenu(menu)
     tray.activated.connect(lambda reason: overlay.toggle_full() if reason == QSystemTrayIcon.ActivationReason.Trigger else None)
@@ -165,6 +189,15 @@ def main() -> int:
     tray.show()
     msg = f"{settings['hotkey_fullmap']}: full-screen map · {settings['hotkey_minimap']}: corner map on/off"
     msg += f"\nLive position: {status}"
+    if settings["start_game"] and not args.no_game and not args.zone:
+        if game_exe is None:
+            msg += "\nGame not found: tray menu → Choose the game"
+        elif game_running():
+            msg += "\nThe game is already running"
+        elif start_game(game_exe):
+            msg += f"\nStarting {game_exe.stem}"
+        else:
+            msg += f"\nCould not start {game_exe.name}"
     if failed:
         msg += f"\nHotkey taken by another program: {', '.join(failed)} (use the tray menu)"
     tray.showMessage("MQ Overlay is running", msg, icon, 4000)

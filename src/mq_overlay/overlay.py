@@ -34,6 +34,8 @@ DEFAULTS = {"hotkey_fullmap": "F7", "hotkey_minimap": "F8", "minimap": True,
             "minimap_span": 60,  # world units across the corner map when it follows you (a game screen is 20)
             "tab": "Map",  # the menu's open tab: Map or Build
             "live_prompt": True,  # at start, explain how to set up the live position when Npcap is missing
+            "start_game": True,  # start the game (its patcher) with the overlay, unless it already runs
+            "game_exe": None,  # the exe that starts the game, when the user picked one (else: found by game_launch)
             "build": None}  # Build tab options: level, defence, weapons, sources
 SETTINGS_VERSION = 2  # version 1 saved every value, so its placement values would hide newer defaults
 KEEP_FROM_V1 = {"hotkey_fullmap", "hotkey_minimap", "minimap", "hidden"}

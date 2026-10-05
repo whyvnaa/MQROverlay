@@ -39,6 +39,13 @@ tray menu and the map's header open the same window later. The overlay only list
 Without Npcap the maps, the search and the Build tab's planning still work; you just have no position and the
 Build tab doesn't know your character.
 
+## One click for both
+
+The overlay starts the game for you: when it starts and the game isn't running yet, it runs "Play MQReborn" (the
+patcher, found through the MQReborn installer's registry entry or `C:\MQReborn`). So a desktop icon for MQ Overlay
+is all you need. The tray icon's menu switches this off ("Start the game with the overlay") or lets you pick the
+program when the game is installed somewhere unusual ("Choose the game…"); `--no-game` skips it once.
+
 ## Keys
 
 | Key | What it does |
@@ -90,7 +97,8 @@ Settings are in `%LOCALAPPDATA%\MonkeyQuest-Overlay\MQ Overlay\settings.json` (o
 is saved): `hotkey_fullmap`, `hotkey_minimap` (e.g. `"Ctrl+M"`), `minimap` (on/off), `minimap_corner`
 (`top-right`, `top-left`, `bottom-right`, `bottom-left`), `minimap_width` (part of the game width, default 0.16),
 `minimap_margin` (pixels from the edges), `minimap_span` (how far the corner map shows around you, in game units;
-a game screen is 20), `live_prompt` (the Npcap window at start). Your character is saved next to it as
+a game screen is 20), `live_prompt` (the Npcap window at start), `start_game` and `game_exe` (the game
+started with the overlay, and which program). Your character is saved next to it as
 `character.json` (numbers and item ids only).
 
 Command line: `--zone LV_CRS_Trail01` shows a zone instead of following the log, `--full` opens the full-screen
