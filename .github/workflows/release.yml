@@ -21,10 +21,7 @@ jobs:
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            dist/mq-overlay-*-setup.exe
-            dist/mq-overlay-${{ github.ref_name }}-win.zip
+          files: dist/mq-overlay-*-setup.exe
           body: |
-            **mq-overlay-…-setup.exe**: the installer (no administrator needed): Start menu entry, desktop icon, uninstaller. Windows SmartScreen warns once about an unsigned program: "More info" → "Run anyway".
-            **mq-overlay-…-win.zip**: the same program as a folder, for a USB stick or if you'd rather not install anything; run `mq-overlay.exe` inside it.
+            Run the installer (no administrator needed): it puts MQ Overlay in the Start menu and on the desktop, with an uninstaller. Windows SmartScreen warns once about an unsigned program: "More info" → "Run anyway".
             For your position in the game and your character in the Build tab, install [Npcap](https://npcap.com/#download); the overlay explains the steps at start.

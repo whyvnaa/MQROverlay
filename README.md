@@ -12,8 +12,7 @@ character), and the map data in `data/`. It does not touch the game, its files o
 **Install**: `mq-overlay-…-setup.exe` from the [latest release](https://github.com/whyvnaa/MQROverlay/releases/latest)
 (about 30 MB). It installs for your user only (no administrator), puts MQ Overlay in the Start menu and on the
 desktop, and comes with an uninstaller. Windows SmartScreen warns once about an unsigned program: "More info", then
-"Run anyway". The zip next to it is the same program as a plain folder (run `mq-overlay.exe` inside it), if you'd
-rather not install anything.
+"Run anyway".
 
 **Or with [uv](https://docs.astral.sh/uv/)** (it brings its own Python), in any terminal:
 
