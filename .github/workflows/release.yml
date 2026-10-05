@@ -1,0 +1,27 @@
+# A tag like v0.2.0 builds the Windows zip (tools/build_exe.py) and attaches it to a GitHub release of that tag.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Run the tests
+        run: uv run --group build pytest -q
+      - name: Build the exe and zip
+        run: uv run --group build tools/build_exe.py --version ${{ github.ref_name }}
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/mq-overlay-${{ github.ref_name }}-win.zip
+          body: |
+            Unzip and run `mq-overlay.exe` (Windows SmartScreen warns once about an unsigned program: "More info" → "Run anyway").
+            For your position in the game and your character in the Build tab, install [Npcap](https://npcap.com/#download); the overlay explains the steps at start.

@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+# snapshots made with --snapshot while testing
+/snapshots/
+# tools/build_exe.py
+/dist/
+/build/
+/CLAUDE.md
