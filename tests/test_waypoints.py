@@ -2,7 +2,7 @@
 target is on the other path, and the real exported zones."""
 
 from mq_overlay.data import GameData
-from mq_overlay.waypoints import Nav, ZoneGraph, target
+from mq_overlay.waypoints import Nav, ZoneGraph, short_name, target
 
 
 class FakeData:
@@ -45,7 +45,8 @@ def test_zone_path_fewest_portals():
 def test_points_at_the_portal_toward_the_waypoint():
     g = ZoneGraph(DATA)
     t = target(DATA, g, "A", WP, (50.0, 0.0))
-    assert (t["x"], t["final"]) == (10, False) and "toward the chest" in t["label"]
+    assert (t["x"], t["final"]) == (10, False) and t["label"] == "Portal to B"
+    assert t["goal"] == "the chest, D · 2 zones"
     t = target(DATA, g, "B", WP, (58.0, 0.0))  # two portals lead there: the closer one
     assert t["x"] == 60
 
@@ -54,6 +55,7 @@ def test_in_the_waypoints_zone_a_bridge_first_when_on_the_other_path():
     g = ZoneGraph(DATA)
     t = target(DATA, g, "D", WP, (10.0, 0.0), my_plane=0)
     assert t["x"] == 20 and "back path" in t["label"]  # 10 -> 20 -> 70 is shorter than 10 -> 80 -> 70
+    assert t["goal"] == "the chest"
     t = target(DATA, g, "D", WP, (10.0, 0.0), my_plane=1)
     assert t["final"] and t["x"] == 70
     assert target(DATA, g, "D", WP, (10.0, 0.0), my_plane=None)["final"]  # path unknown: straight there
@@ -81,6 +83,23 @@ def strip(key, plane, x0, x1, down=()):
 # The front path is cut in two (0..40 and 60..100), the back path runs through: to get from the left front part to
 # the right one you cross to the back at 20 and come to the front again at 80.
 SPLIT = [strip(1, 0, 0, 40), strip(2, 0, 60, 100), strip(3, 1, 0, 100)]
+
+
+def test_short_marker_names():
+    assert short_name("Chest: Fanged Mystic Belt 6.7 %, Fanged Mystic Crown 6.7 %") == "Chest"
+    assert short_name("Way between the front and back path: press up to go to the back") == "Bridge"
+    assert short_name("Hazard: BON TwistedSpikes1x1 1") == "Hazard"
+    assert short_name("Quest item: Col_KNI_MiniShards1_RNTrail1") == "Quest item"
+    assert short_name("Quest item: Clue") == "Quest item: Clue"
+    assert short_name("Scatterfoot (Accessories vendor) · Lv 12") == "Scatterfoot (Accessories vendor)"
+    assert short_name("Portal to The Hive") == "Portal to The Hive"
+
+
+def test_a_bridge_before_a_portal_names_the_waypoint_not_the_portal():
+    data = FakeData({"A": [portal(90, "B", plane=1), bridge(20)], "B": [portal(0, "A")]})
+    wp = {"zone": "B", "x": 5.0, "y": 0.0, "plane": 0, "label": "Chest: Oak Plank Armor 50 %"}
+    t = target(data, ZoneGraph(data), "A", wp, (10.0, 0.0), my_plane=0)
+    assert (t["x"], t["label"], t["goal"]) == (20, "Bridge to the back path", "Chest, B")
 
 
 def split_zone(markers=()):

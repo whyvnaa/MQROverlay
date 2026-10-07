@@ -24,7 +24,7 @@ from .game_window import GameWindow, bring_to_front, set_no_activate
 from .live import LiveState
 from .map_view import MapView
 from .player import PlayerState
-from .waypoints import ArrowWindow, ZoneGraph, target
+from .waypoints import ArrowWindow, ZoneGraph, short_name, target
 
 DEFAULTS = {"hotkey_fullmap": "F7", "hotkey_minimap": "F8", "minimap": True,
             "waypoint": None,  # {"zone", "x", "y", "plane", "label"}: the arrow points the way there
@@ -330,7 +330,7 @@ class Overlay(QWidget):
     # ---------------------------------------------------------------- waypoint
 
     def set_waypoint_marker(self, m: dict) -> None:
-        label = m["tip"].split(" · ")[0]
+        label = short_name(m["tip"])
         self.set_waypoint({"zone": self.shown, "x": m["x"], "y": m["y"], "plane": None if m.get("both") else m["plane"],
                            "label": label})
 
@@ -371,9 +371,9 @@ class Overlay(QWidget):
             self.map.clear_waypoint()
         if wp:
             title = self.data.zones.get(wp["zone"].lower(), {}).get("title") or wp["zone"]
-            text = f"Waypoint: {wp['label']} in {title}"
+            text = f"Waypoint: {short_name(wp['label'])} in {title}"
             if t and not t["final"]:
-                text += f" · next: {t['label'].split(' (toward')[0]}"
+                text += f" · next: {t['label']}"
             elif self.current and not t:
                 text += " · no portal way from here"
             self.route_label.setText(text)
@@ -385,7 +385,8 @@ class Overlay(QWidget):
         show = t is not None and me is not None and self.mode == "mini" and game is not None
         self.arrow.set_state(game if show else None, (t["x"] - me[0], t["y"] - me[1]) if show else None,
                              t["label"] if t else "",
-                             other_path=bool(show and t["plane"] is not None and mine is not None and t["plane"] != mine))
+                             other_path=bool(show and t["plane"] is not None and mine is not None and t["plane"] != mine),
+                             goal=t["goal"] if t else "")
 
     def follow(self) -> None:
         self.view_zone(self.current)

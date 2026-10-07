@@ -23,9 +23,22 @@ from PySide6.QtWidgets import QWidget
 from .data import GameData
 
 ARRIVED = 2.5  # units: closer than this, you are there
+# marker tips whose name part is too long for a label (tip head -> label)
+SHORT = {"Way between the front and back path": "Bridge", "Hazard": "Hazard"}
+
+
+def short_name(tip: str) -> str:
+    """A marker's name for labels: its tip without the extras after " · ", and without drop lists or internal names
+    ("Chest: Fanged Mystic Belt 6.7 %, ..." -> "Chest", "Way between the front and back path: ..." -> "Bridge")."""
+    name = tip.split(" · ")[0]
+    head, sep, rest = name.partition(": ")
+    if sep and (head in SHORT or any(c in rest for c in "%_,")):
+        name = head
+    return SHORT.get(name, name)
 CROSS = 4.0  # units a bridge crossing counts as (so the way with fewer crossings wins when the lengths are close)
 BRIDGE_REACH = 3.0  # a bridge links the areas at most this far from it
 BANANA, EDGE = QColor("#ffd54f"), QColor("#5d4000")
+TEXT, DIM = QColor("#fff6e0"), QColor("#e8dcb8")  # label: what the arrow points at, then distance and goal
 
 
 class ZoneGraph:
@@ -157,7 +170,8 @@ def target(data: GameData, graph: ZoneGraph, here: str | None, waypoint: dict | 
     to cross when the way there changes between the front and the back path (the game's areas, Nav; of several
     portals to the next zone the one with the shortest way). Without that data: the closest portal, and the bridge
     that makes the straight way shortest when the target is on the other path than you (my_plane).
-    {"x", "y", "plane", "label", "final", "zone"}; None without a waypoint or a way there."""
+    {"x", "y", "plane", "label", "goal", "final", "zone"}: label = what is pointed at, goal = the waypoint it leads
+    to ("" when it is the waypoint); None without a waypoint or a way there."""
     goals = _goals(data, graph, here, waypoint, me)
     if not goals:
         return None
@@ -174,7 +188,7 @@ def target(data: GameData, graph: ZoneGraph, here: str | None, waypoint: dict | 
         if best:
             side = "front" if my_plane == 1 else "back"
             return {"x": best[1]["x"], "y": best[1]["y"], "plane": None, "zone": here, "final": False,
-                    "label": f"Bridge to the {side} path (toward {best[2]['label']})"}
+                    "label": f"Bridge to the {side} path", "goal": best[2]["goal"] or best[2]["label"]}
     t = goals[0]
     if me is None or my_plane is None or t["plane"] is None or t["plane"] == my_plane:
         return t
@@ -184,7 +198,7 @@ def target(data: GameData, graph: ZoneGraph, here: str | None, waypoint: dict | 
     b = min(bridges, key=lambda m: math.dist(me, (m["x"], m["y"])) + math.dist((m["x"], m["y"]), (t["x"], t["y"])))
     side = "back" if t["plane"] == 1 else "front"
     return {"x": b["x"], "y": b["y"], "plane": None, "zone": here, "final": False,
-            "label": f"Bridge to the {side} path (toward {t['label']})"}
+            "label": f"Bridge to the {side} path", "goal": t["goal"] or t["label"]}
 
 
 def _goals(data: GameData, graph: ZoneGraph, here: str | None, waypoint: dict | None,
@@ -193,7 +207,7 @@ def _goals(data: GameData, graph: ZoneGraph, here: str | None, waypoint: dict | 
     if not (waypoint and here):
         return []
     if waypoint["zone"].lower() == here.lower():
-        return [{**waypoint, "final": True}]
+        return [{**waypoint, "label": short_name(waypoint["label"]), "goal": "", "final": True}]
     path = graph.path(here, waypoint["zone"])
     if not path or len(path) < 2:
         return []
@@ -204,9 +218,9 @@ def _goals(data: GameData, graph: ZoneGraph, here: str | None, waypoint: dict | 
         portals.sort(key=lambda m: math.dist(me, (m["x"], m["y"])))
     title = data.zones.get(waypoint["zone"].lower(), {}).get("title") or waypoint["zone"]
     hops = len(path) - 1
+    goal = f"{short_name(waypoint['label'])}, {title}" + (f" · {hops} zones" if hops > 1 else "")
     return [{"x": p["x"], "y": p["y"], "plane": p["plane"], "zone": here, "final": False,
-             "label": f"{p['tip']} (toward {waypoint['label']} in {title}" + (f", {hops} zones" if hops > 1 else "") + ")"}
-            for p in portals]
+             "label": short_name(p["tip"]), "goal": goal} for p in portals]
 
 
 class ArrowWindow(QWidget):
@@ -221,11 +235,12 @@ class ArrowWindow(QWidget):
         self.setWindowTitle("MQ Overlay arrow")
         self.direction: tuple[float, float] | None = None  # world units, y up
         self.label = ""
+        self.goal = ""
         self.distance = 0.0
         self.other_path = False
 
     def set_state(self, rect: QRect | None, direction: tuple[float, float] | None, label: str = "",
-                  other_path: bool = False) -> None:
+                  other_path: bool = False, goal: str = "") -> None:
         """Show the arrow over the game's client rect pointing along direction (world units), or hide it."""
         if rect is None or direction is None:
             if self.isVisible():
@@ -233,7 +248,7 @@ class ArrowWindow(QWidget):
             return
         if self.geometry() != rect:
             self.setGeometry(rect)
-        self.direction, self.label, self.other_path = direction, label, other_path
+        self.direction, self.label, self.other_path, self.goal = direction, label, other_path, goal
         self.distance = math.hypot(*direction)
         if not self.isVisible():
             self.show()
@@ -257,7 +272,7 @@ class ArrowWindow(QWidget):
         font.setBold(True)
         p.setFont(font)
         if self.distance < ARRIVED:
-            text = f"You're at {self.label}"
+            text = f"Here: {self.label}"
             self.outlined_text(p, QPointF(cx, cy - r - 10), text, center=True)
             p.setPen(QPen(BANANA, 3))
             p.setBrush(Qt.BrushStyle.NoBrush)
@@ -276,21 +291,25 @@ class ArrowWindow(QWidget):
         p.setPen(QPen(EDGE, 3))
         p.setBrush(BANANA)
         p.drawPolygon(arrow)
-        # the label beside the tip, clear of the arrow: what it points at, then where that leads, then how far
-        name, _, rest = self.label.partition(" (toward ")
-        lines = [name, f"toward {rest.rstrip(')')}" if rest else "",
-                 f"{self.distance:.0f} away" + (" · on the other path" if self.other_path else "")]
-        fm = p.fontMetrics()
-        width = max(fm.horizontalAdvance(t) for t in lines if t)
-        step = fm.height() + 2
+        # the label beside the tip, clear of the arrow: what it points at (bold), how far, and the waypoint it leads to
+        small = QFont("Nunito", 10)
+        small.setBold(True)
+        far = f"{self.distance:.0f} away" + (" · other path" if self.other_path else "")
+        lines = [(self.label, font, TEXT), (far, small, DIM)] + ([(f"→ {self.goal}", small, DIM)] if self.goal else [])
+        sizes = []
+        for t, f, _ in lines:
+            p.setFont(f)
+            sizes.append((p.fontMetrics().horizontalAdvance(t), p.fontMetrics().height()))
+        width = max(w for w, _ in sizes)
+        height = sum(h for _, h in sizes)
         x = tip.x() + ux * 16 + (0 if ux > 0.4 else -width if ux < -0.4 else -width / 2)
-        y = tip.y() + uy * 16 + (step if uy > 0.4 else -step * 2.5 if uy < -0.4 else -step)
-        for t in lines:
-            if t:
-                self.outlined_text(p, QPointF(x, y), t)
-                y += step
+        y = tip.y() + uy * 16 + (sizes[0][1] / 2 if uy > 0.4 else -height if uy < -0.4 else -height / 2 + sizes[0][1] / 2)
+        for (t, f, color), (_, h) in zip(lines, sizes):
+            p.setFont(f)
+            self.outlined_text(p, QPointF(x, y), t, color=color)
+            y += h + 1
 
-    def outlined_text(self, p: QPainter, at: QPointF, text: str, center: bool = False) -> None:
+    def outlined_text(self, p: QPainter, at: QPointF, text: str, center: bool = False, color: QColor = None) -> None:
         fm = p.fontMetrics()
         width = fm.horizontalAdvance(text)
         x = at.x() - width / 2 if center else at.x()
@@ -301,14 +320,15 @@ class ArrowWindow(QWidget):
         p.setBrush(Qt.BrushStyle.NoBrush)
         p.drawPath(path)
         p.setPen(Qt.PenStyle.NoPen)
-        p.setBrush(QColor("#fff6e0"))
+        p.setBrush(color or TEXT)
         p.drawPath(path)
 
-    def render_to(self, path: str, size: tuple[int, int], direction: tuple[float, float], label: str) -> None:
+    def render_to(self, path: str, size: tuple[int, int], direction: tuple[float, float], label: str,
+                  goal: str = "", other_path: bool = False) -> None:
         """For testing: the arrow over a game-like background into a PNG."""
         from PySide6.QtGui import QPixmap
         self.resize(*size)
-        self.direction, self.label = direction, label
+        self.direction, self.label, self.goal, self.other_path = direction, label, goal, other_path
         self.distance = math.hypot(*direction)
         img = QPixmap(*size)
         img.fill(QColor("#7fb3d5"))
