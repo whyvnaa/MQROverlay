@@ -48,9 +48,14 @@ VERSION_INFO = """VSVersionInfo(
 
 def own_bootloader() -> None:
     """Reinstall the PyInstaller version in use from its source package, compiling the bootloader (needs a C
-    compiler)."""
+    compiler). It builds in a short temp folder of our own: on GitHub's runners TEMP is written both as
+    C:/Users/runneradmin and C:/Users/RUNNER~1, and the bootloader's build tool then hands the compiler a relative
+    path it can't open (2026-10-08, release v0.1.2)."""
     version = importlib.metadata.version("pyinstaller")
-    env = dict(os.environ, PYINSTALLER_COMPILE_BOOTLOADER="1")
+    tmp = ROOT / "build" / "tmp"
+    shutil.rmtree(tmp, ignore_errors=True)
+    tmp.mkdir(parents=True)
+    env = dict(os.environ, PYINSTALLER_COMPILE_BOOTLOADER="1", TMP=str(tmp), TEMP=str(tmp))
     subprocess.run(["uv", "pip", "install", "--python", sys.executable, "--reinstall-package", "pyinstaller", "--no-cache",
                     "--no-binary", "pyinstaller", f"pyinstaller=={version}"], check=True, env=env)
 
