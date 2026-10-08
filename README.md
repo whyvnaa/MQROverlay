@@ -8,26 +8,26 @@ level from what you own.
 
 - **A map in the corner of your game (F8)** that follows you around, with enemies, chests, portals and NPCs on it.
 
-  ![The corner map in the top right corner of the game](docs/corner-map.jpg)
+  <a href="docs/corner-map.jpg"><img src="docs/corner-map.jpg" width="420" alt="The corner map in the top right corner of the game"></a>
 
 - **A full map (F7)** where you can search for anything: an enemy, an item drop, an NPC, a quest item.
 
-  ![The full map with a search for chests](docs/full-map.png)
+  <a href="docs/full-map.png"><img src="docs/full-map.png" width="600" alt="The full map with a search for chests"></a>
 
 - **Drops on every marker**: point at a chest, an enemy or a gathering spot to see everything it can drop and how
   likely. Right-click opens its page on the wiki.
 
-  ![A chest's drops with their chances when you point at it on the map](docs/drops.png)
+  <a href="docs/drops.png"><img src="docs/drops.png" width="420" alt="A chest's drops with their chances when you point at it on the map"></a>
 
 - **A waypoint arrow**: click a spot on the full map and a yellow arrow next to your monkey points the way, zone by
   zone and over the bridges between the front and back path.
 
-  ![The yellow arrow pointing to the bridge on the way to a chest five zones away](docs/arrow.jpg)
+  <a href="docs/arrow.jpg"><img src="docs/arrow.jpg" width="360" alt="The yellow arrow pointing to the bridge on the way to a chest five zones away"></a>
 
 - **A build tab** that looks at what you own and suggests the best gear for every level up to 60, and where to get
   what you're missing.
 
-  ![The build tab: the best gear at every level and the choices for one level](docs/build-tab.png)
+  <a href="docs/build-tab.png"><img src="docs/build-tab.png" width="600" alt="The build tab: the best gear at every level and the choices for one level"></a>
 
 ## Is it safe?
 
