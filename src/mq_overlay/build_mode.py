@@ -154,7 +154,8 @@ class BuildMode(QWidget):
         row.addWidget(QLabel("Your level"))
         self.level = QSpinBox(minimum=0, maximum=60, specialValueText="game")
         self.level.setValue(self.opt.level or 0)
-        self.level.setToolTip("Your level (\"game\": from the game); the progression shows every level")
+        self.level.setToolTip("Your level (\"game\": from the game; type or scroll for another); the progression "
+                              "shows every level")
         self.level.valueChanged.connect(self.changed)
         row.addWidget(self.level)
         v.addLayout(row)
@@ -413,6 +414,7 @@ class BuildMode(QWidget):
             return
         snap = self.player.snapshot() if self.player else {"known": False, "version": 0}
         self.version = snap["version"]
+        self.level.setSpecialValueText(f"game ({snap['level']})" if snap.get("level") else "game")
         self.opt.zone = self.current_zone()
         self.snap = snap
         self.profile = self.builder.profile(snap, self.opt)

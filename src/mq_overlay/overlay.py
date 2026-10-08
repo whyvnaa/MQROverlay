@@ -15,7 +15,7 @@ from pathlib import Path
 
 from PySide6.QtCore import QEvent, QRect, QStandardPaths, Qt, QTimer
 from PySide6.QtGui import QColor, QCursor, QGuiApplication, QIcon, QPainter, QPixmap
-from PySide6.QtWidgets import (QApplication, QComboBox, QFrame, QHBoxLayout, QLabel, QLineEdit, QListWidget,
+from PySide6.QtWidgets import (QAbstractSpinBox, QApplication, QComboBox, QFrame, QHBoxLayout, QLabel, QLineEdit, QListWidget,
                                QListWidgetItem, QPushButton, QScrollArea, QVBoxLayout, QWidget)
 
 from .build_mode import BuildMode
@@ -216,7 +216,8 @@ class Overlay(QWidget):
         menu.addWidget(section("Find"))
         self.search = QLineEdit(placeholderText="Enemy, item, NPC, portal… (Ctrl+F)")
         self.search.setClearButtonEnabled(True)
-        self.search.installEventFilter(self)  # a click into it takes the keyboard
+        # a click into any field you type in (search, level, ...) takes the keyboard: see eventFilter
+        QApplication.instance().installEventFilter(self)
         self.search_timer = QTimer(self, singleShot=True, interval=200)
         self.search_timer.timeout.connect(self.run_search)
         self.search.textChanged.connect(self.search_timer.start)
@@ -233,7 +234,6 @@ class Overlay(QWidget):
         for meta in sorted(data.zones.values(), key=lambda z: (z["title"] or z["name"]).lower()):
             self.zone_box.addItem(f"{meta['title']} (Lv {meta['level']})", meta["name"])
         self.zone_box.activated.connect(self.pick_zone)
-        self.zone_box.installEventFilter(self)
         menu.addWidget(self.zone_box)
 
         menu.addWidget(section("Show on the map"))
@@ -624,8 +624,13 @@ class Overlay(QWidget):
         set_no_activate(hwnd, False)
         bring_to_front(hwnd)
 
+    TYPING = (QLineEdit, QAbstractSpinBox, QComboBox)  # a spin box's text is a QLineEdit inside it
+
     def eventFilter(self, obj, event) -> bool:
-        if event.type() == QEvent.Type.MouseButtonPress and self.mode == "full":
+        """Watches the whole app: a click on a field you type in, anywhere in this window, takes the keyboard. Only
+        the search and the zone list did before, so a number typed into the Build tab's level went to the game."""
+        if (event.type() == QEvent.Type.MouseButtonPress and self.mode == "full" and isinstance(obj, self.TYPING)
+                and obj.window() is self):
             self.take_keyboard()
         return False
 
