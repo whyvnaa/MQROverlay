@@ -43,6 +43,8 @@ def main() -> int:
     parser.add_argument("--character", type=Path, help="snapshot: a saved character.json instead of --own")
     parser.add_argument("--prefer", choices=["melee", "ranged"], help="snapshot: the build style (default hybrid)")
     parser.add_argument("--exclude", default="", help="snapshot: items excluded in Build mode, comma-separated names")
+    parser.add_argument("--clean", action="store_true",
+                        help="snapshot with the default settings instead of yours (for pictures others see)")
     parser.add_argument("--card", default="", help="snapshot: open this item's card in Build mode")
     parser.add_argument("--shop", default="", metavar="TAB[:GROUP]",
                         help="snapshot: Build mode's shop list on this tab (a tribe or Armour[:Fire|blunt|any])")
@@ -58,6 +60,8 @@ def main() -> int:
 
     data = GameData()
     settings = load_settings(data)
+    if args.snapshot and args.clean:
+        settings = dict(settings["_defaults"], _defaults=settings["_defaults"])
     live = LiveState()
     # your character: the saved copy from last time, then the game's messages (snapshots: none)
     player = None if args.snapshot else PlayerState(config_file().parent / "character.json")

@@ -4,24 +4,60 @@ A map and build overlay for the Monkey Quest client on MQReborn. It shows the ma
 you are, an arrow to any spot you pick, and a Build tab that works out the best gear for your character at every
 level from what you own.
 
-It only reads: the client's log file (to know your zone), the game's own network messages (your position and your
-character), and the map data in `data/`. It does not touch the game, its files or its memory.
+## What you get
 
-## Install and run
+- **A map in the corner of your game (F8)** that follows you around, with enemies, chests, portals and NPCs on it.
+- **A full map (F7)** where you can search for anything: an enemy, an item drop, an NPC, a quest item. Click a spot
+  and a yellow arrow on your screen points the way, even through other zones.
 
-**Install**: `mq-overlay-…-setup.exe` from the [latest release](https://github.com/whyvnaa/MQROverlay/releases/latest)
-(about 30 MB). It installs for your user only (no administrator), puts MQ Overlay in the Start menu and on the
-desktop, and comes with an uninstaller. Windows SmartScreen warns once about an unsigned program: "More info", then
-"Run anyway".
+  ![The full map with a search for chests](docs/full-map.png)
 
-**Or with [uv](https://docs.astral.sh/uv/)** (it brings its own Python), in any terminal:
+- **A build tab** that looks at what you own and suggests the best gear for every level up to 60, and where to get
+  what you're missing.
+
+  ![The build tab: the best gear at every level and the choices for one level](docs/build-tab.png)
+
+## Is it safe?
+
+The overlay only reads, it never changes anything:
+
+- it reads the game's log file to know which zone you are in,
+- it listens to the game's own connection (through [Npcap](https://npcap.com/#download)) for your position and
+  your character (level, inventory, gear), in memory only; the only thing saved is your character as numbers and
+  item ids,
+- it doesn't touch the game's files or memory, doesn't press keys for you and doesn't send anything anywhere.
+
+All the code is here in this repository, and the installer is built by GitHub from exactly this code (see the
+Actions tab). Because the program isn't signed yet, Windows and some antivirus programs warn about it the first
+time: Windows shows "More info", then "Run anyway"; Norton may scan it and then report nothing found.
+
+This is a fan project. It is not made by the MQReborn team or Nickelodeon.
+
+## Install
+
+**With the installer** (easiest):
+
+1. Download `mq-overlay-…-setup.exe` from the [latest release](https://github.com/whyvnaa/MQROverlay/releases/latest)
+   and run it (no administrator needed). It puts MQ Overlay in the Start menu and on the desktop and comes with an
+   uninstaller.
+2. Install [Npcap](https://npcap.com/#download). The overlay needs it to see where you are and to know your
+   character (level, inventory, gear) for the build tab. It walks you through this on first start. Without it the
+   maps, the search and the build planner still work.
+3. Start MQ Overlay from the desktop. It starts the game for you. Press F8 or F7 in the game.
+
+**Or with [uv](https://docs.astral.sh/uv/)**, if you'd rather run it straight from the code (no installer, no
+SmartScreen warning). Install uv once, then run this in any terminal:
 
 ```bash
 uvx --from git+https://github.com/whyvnaa/MQROverlay mq-overlay
 ```
 
-The first start downloads the overlay and the whole Qt package (about 100 MB, once); to update, add `--refresh`.
-Or clone the repository and run `uv run mq-overlay` inside it.
+The first start downloads the overlay and Qt (about 100 MB, once). Add `--refresh` to get the newest version.
+Npcap is needed the same way as above. Or clone the repository and run `uv run mq-overlay` inside it.
+
+Found a bug or have an idea? [Open an issue](https://github.com/whyvnaa/MQROverlay/issues).
+
+## Running it
 
 Windows only (the game is too). The game must run in a window or borderless window: overlays can't draw over
 exclusive fullscreen (Alt+Enter in the game switches). The game's install folder doesn't matter.
@@ -33,7 +69,8 @@ overlay reads through [Npcap](https://npcap.com/#download). Install it once (kee
 API-compatible Mode" ticked, leave "Restrict Npcap driver's access to Administrators only" unticked). The overlay
 tells you at start when Npcap is missing, with the steps and a "Check again" button, so no restart is needed; the
 tray menu and the map's header open the same window later. The overlay only listens to the game's connection
-(port 9339), in memory: nothing is logged or saved, and your login is never stored.
+(port 9339), in memory: no traffic is logged or saved, only your character's numbers and item ids (see
+Settings below).
 
 Without Npcap the maps, the search and the Build tab's planning still work; you just have no position and the
 Build tab doesn't know your character.
@@ -104,7 +141,8 @@ Command line: `--zone LV_CRS_Trail01` shows a zone instead of following the log,
 map right away (works without the game), `--log PATH` reads another log file (the default is the client's
 `output_log.txt` under `%LOCALAPPDATA%Low\MQReborn Team\MQReborn`), `--no-live` turns the live position off.
 `--snapshot out.png` renders the overlay into a PNG and exits (for testing; `--build LEVEL`, `--own`, `--card`,
-`--shop` and more set up the Build tab for it).
+`--shop` and more set up the Build tab for it; `--clean` uses the default settings instead of yours, as for the
+pictures in `docs/`).
 
 Tests: `uv run pytest`. Release: `uv run --group build tools/build_exe.py --installer` (PyInstaller and Inno
 Setup; a tag `v*` on GitHub builds the installer and the zip and attaches them automatically).
