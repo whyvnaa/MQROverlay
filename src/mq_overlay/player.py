@@ -8,13 +8,17 @@ differ, so everything is parsed defensively and failures are only counted):
       ("id{count{binding{delay" split by ">"), [5] hotbar, [8] worn gear ("slot=id=binding" split by ":"), and later
       the learned recipes ("recipe,item,n,..." split by "|"). Other players' info (Lite) has far fewer sections.
       Zone changes send only your position, so the full picture comes at login.
-- in  %xt%ip%<room>%<items>%<flag>%     inventory: "id{count{binding{delay|id{..." (CharacterInventoryExtensions)
+- in  %xt%ip%<room>%<items>%<flag>%     inventory: "id{count{binding{delay|id{..." (CharacterInventoryExtensions).
+      The client (InventoryHandler.UpdateCharacterInventory) merges it into what it has: each listed item gets the
+      new count (0 = gone), unlisted items stay. Upstream sends the whole bag, but merging is what the game shows.
+- in  %xt%iW%<room>%<items>%<loot>%<object>%<debug>%  wheel of loot: the inventory again, merged the same way
 - in  %xt%ca%<room>%<bananas>%<nc>%     bananas and NickCash (PlayerExtensions.SendCashUpdate)
 - in  %xt%cp%<room>%<xp>%<xp for next level>%   (PlayerExtensions.SendRepPoints)
 - in  %xt%ce%<room>%<level<...>%<user>%  level up (LevelUpDataModel; yours when the user is you)
 - in  %xt%cA%<room>%<type|points|unlocked<...>%<tribe>%<auto>%   badge points per tribe (AssignBadges)
 - in  %xt%cz%<room>%<recipe,item,n,...>%  a pattern learned (UseItem)
-- in  %xt%hs|hu%<room>%<slot|item|slot|item...>%  hotbar (UseItem, UseItemFromHotBar)
+- in  %xt%hg|hs|hw|hu|hr%<room>%<slot|item|slot|item...>%  the whole hotbar after a get, set, swap, use or
+      remove (client HotbarHandler takes all five alike; a swap or a removed weapon used to be missed)
 - out %xt%<ext>%ie%<room>%<slot=id=binding:...>%   your new equipment (EquipItem; worn items leave the inventory)
 - in  %xt%iq%<room>%<user>%<slot=id=binding:...>%  someone's equipment (yours when the user is you)
 
@@ -40,15 +44,23 @@ def lead_int(text: str) -> int | None:
     return int(head) if head.lstrip("-").isdigit() else None
 
 
-def parse_items(text: str) -> dict[int, int]:
-    """Inventory items "id{count{binding{delay", split by "|" (ip) or ">" (login info)."""
+def parse_counts(text: str) -> dict[int, int]:
+    """Inventory items "id{count{binding{delay", split by "|" (ip) or ">" (login info): id -> count, 0 included (an
+    item that is gone). Like the client, a later entry for the same id replaces an earlier one."""
     out: dict[int, int] = {}
     for entry in text.replace(">", "|").split("|"):
         f = entry.split("{")
-        if len(f) >= 2 and f[0].lstrip("-").isdigit() and f[1].lstrip("-").isdigit():
-            if int(f[1]) > 0:
-                out[int(f[0])] = out.get(int(f[0]), 0) + int(f[1])
+        if len(f) >= 2 and f[0].lstrip("-").isdigit() and f[1].lstrip("-").isdigit() and int(f[0]) != 0:
+            out[int(f[0])] = max(0, int(f[1]))
     return out
+
+
+def parse_items(text: str) -> dict[int, int]:
+    """The items you have (count above 0)."""
+    return {k: n for k, n in parse_counts(text).items() if n > 0}
+
+
+HOTBAR_CODES = ("hg", "hs", "hw", "hu", "hr")
 
 
 def parse_equipment(text: str) -> dict[int, int]:
@@ -162,10 +174,16 @@ class PlayerState:
                         setattr(self, k, v)
                     self.user, self.source = args[0], "login"
                     self.bump(code)
-        elif code == "ip" and args:
-            items = parse_items(args[0])
+        elif code in ("ip", "iW") and args:
+            counts = parse_counts(args[0])
             with self.lock:
-                self.inventory = items
+                inv = dict(self.inventory or {})
+                for k, n in counts.items():
+                    if n > 0:
+                        inv[k] = n
+                    else:
+                        inv.pop(k, None)
+                self.inventory = inv
                 self.bump(code)
         elif code == "ca" and len(args) >= 2:
             bananas, nc = num(args[0]), num(args[1])
@@ -195,7 +213,7 @@ class PlayerState:
             with self.lock:
                 self.recipes = (self.recipes or set()) | learned
                 self.bump(code)
-        elif code in ("hs", "hu") and args:
+        elif code in HOTBAR_CODES and args:
             bar = parse_hotbar(args[0])
             with self.lock:
                 self.hotbar = bar

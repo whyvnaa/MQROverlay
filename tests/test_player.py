@@ -82,3 +82,37 @@ def test_junk_is_counted_not_raised():
     p.handle("in", "%xt%ca%-1%lots%x%")
     p.handle("in", "not smartfox")
     assert p.errors == 1 and p.snapshot()["known"] is False
+
+
+def test_changing_gear_updates_bag_and_worn():
+    """What the server sends for an equip (EquipItem): your equipment to the room, then the bag with the old piece
+    back and the new one at 0."""
+    p = PlayerState()
+    p.handle("in", f"%xt%ci%-1%42%{login_info()}%99%LV_CRS_Trail01%")
+    p.handle("in", "%xt%ip%-1%1001{1{0{0|2002{5{1{0%0%")
+    p.handle("out", "%xt%mqj%ie%-1%13=1001=0:15=600=1%%")
+    p.handle("in", "%xt%iq%-1%42%13=1001=0:15=600=1%%")
+    p.handle("in", "%xt%ip%-1%1001{0{0{0|2002{5{1{0|501{1{0{0%1%")
+    s = p.snapshot()
+    assert s["worn"] == {13: 1001, 15: 600}
+    assert s["inventory"] == {2002: 5, 501: 1}
+
+
+def test_inventory_is_merged_like_the_client():
+    p = PlayerState()
+    p.handle("in", "%xt%ip%-1%1001{1{0{0|2002{5{1{0%0%")
+    p.handle("in", "%xt%ip%-1%2002{4{1{0%0%")  # only one stack listed: the others stay
+    assert p.snapshot()["inventory"] == {1001: 1, 2002: 4}
+    p.handle("in", "%xt%iW%-1%3003{1{0{0|1001{0{0{0%3003%77%0%")  # wheel of loot
+    assert p.snapshot()["inventory"] == {2002: 4, 3003: 1}
+
+
+def test_every_hotbar_message():
+    p = PlayerState()
+    p.handle("in", "%xt%hs%-1%0|1001{1{0|1|2002{1{0%")
+    p.handle("in", "%xt%hw%-1%0|2002{1{0|1|1001{1{0%")  # swapped
+    assert p.snapshot()["hotbar"] == {0: 2002, 1: 1001}
+    p.handle("in", "%xt%hr%-1%1|1001{1{0%")  # removed
+    assert p.snapshot()["hotbar"] == {1: 1001}
+    p.handle("in", "%xt%hg%-1%0|3005{1{0%")
+    assert p.snapshot()["hotbar"] == {0: 3005}

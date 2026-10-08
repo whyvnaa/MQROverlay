@@ -63,8 +63,11 @@ def main() -> int:
     player = None if args.snapshot else PlayerState(config_file().parent / "character.json")
 
     def on_message(direction: str, msg: str) -> None:
-        live.handle(direction, msg)
-        player.handle(direction, msg)
+        for reader in (live, player):  # a message one of them chokes on must still reach the other
+            try:
+                reader.handle(direction, msg)
+            except Exception:
+                pass
     sniffer = None if args.snapshot or args.no_live else Sniffer(on_message)
     if sniffer:
         sniffer.start()
