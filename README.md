@@ -7,6 +7,10 @@ level from what you own.
 ## What you get
 
 - **A map in the corner of your game (F8)** that follows you around, with enemies, chests, portals and NPCs on it.
+  The yellow arrow next to your monkey points the way to your waypoint, here a chest five zones away.
+
+  ![The corner map at the top right and the yellow waypoint arrow in the game](docs/corner-map.jpg)
+
 - **A full map (F7)** where you can search for anything: an enemy, an item drop, an NPC, a quest item. Click a spot
   and a yellow arrow on your screen points the way, even through other zones.
 
