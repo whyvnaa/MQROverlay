@@ -42,6 +42,23 @@ if sys.platform == "win32":
     kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
     PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
 
+    class MONITORINFO(ctypes.Structure):
+        _fields_ = [("cbSize", wintypes.DWORD), ("rcMonitor", wintypes.RECT), ("rcWork", wintypes.RECT),
+                    ("dwFlags", wintypes.DWORD)]
+
+    user32.MonitorFromWindow.restype = wintypes.HMONITOR
+    user32.MonitorFromWindow.argtypes = [wintypes.HWND, wintypes.DWORD]
+    user32.GetMonitorInfoW.argtypes = [wintypes.HMONITOR, ctypes.POINTER(MONITORINFO)]
+    user32.SetWindowPos.argtypes = [wintypes.HWND, wintypes.HWND, ctypes.c_int, ctypes.c_int, ctypes.c_int,
+                                    ctypes.c_int, wintypes.UINT]
+    MONITOR_DEFAULTTONEAREST = 2
+    SWP_NOZORDER, SWP_NOACTIVATE, SWP_NOOWNERZORDER = 0x0004, 0x0010, 0x0200
+    # Windows 10 1607 and later
+    GetDpiForWindow = getattr(user32, "GetDpiForWindow", None)
+    if GetDpiForWindow:
+        GetDpiForWindow.restype = wintypes.UINT
+        GetDpiForWindow.argtypes = [wintypes.HWND]
+
 
 def _exe_name(pid: int) -> str:
     handle = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
@@ -93,6 +110,40 @@ def client_rect(hwnd) -> tuple[int, int, int, int] | None:
     return p.x, p.y, r.right - r.left, r.bottom - r.top
 
 
+def monitor_rect(hwnd) -> tuple[int, int, int, int] | None:
+    """The whole monitor a window is on (x, y, width, height) in physical pixels, as Windows has it right now."""
+    if sys.platform != "win32" or not hwnd:
+        return None
+    info = MONITORINFO(cbSize=ctypes.sizeof(MONITORINFO))
+    if not user32.GetMonitorInfoW(user32.MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST), ctypes.byref(info)):
+        return None
+    r = info.rcMonitor
+    return r.left, r.top, r.right - r.left, r.bottom - r.top
+
+
+def window_rect(hwnd) -> tuple[int, int, int, int] | None:
+    """A window's outer rect (x, y, width, height) in physical pixels."""
+    if sys.platform != "win32" or not hwnd:
+        return None
+    r = wintypes.RECT()
+    if not user32.GetWindowRect(hwnd, ctypes.byref(r)):
+        return None
+    return r.left, r.top, r.right - r.left, r.bottom - r.top
+
+
+def move_window(hwnd, x: int, y: int, w: int, h: int) -> None:
+    """Move and resize a window in physical pixels, without activating it or changing its stacking."""
+    if sys.platform == "win32" and hwnd:
+        user32.SetWindowPos(hwnd, None, x, y, w, h, SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOOWNERZORDER)
+
+
+def dpi_scale(hwnd) -> float:
+    """Windows' scale for a window (1.0 = 100 %)."""
+    if sys.platform != "win32" or not hwnd or not GetDpiForWindow:
+        return 1.0
+    return (GetDpiForWindow(hwnd) or 96) / 96
+
+
 class GameWindow:
     """Caches the game's window handle; find() is cheap when the window still exists."""
 
@@ -124,9 +175,23 @@ class GameWindow:
         return self.hwnd
 
     def rect(self) -> tuple[int, int, int, int] | None:
-        """The game's client area, or None if there is no game window or it is minimized."""
+        """The game's client area, or None if there is no game window or it is minimized. Cut to its monitor: right
+        after the game switches the display to another resolution (a 4:3 mode) its window can still have the old
+        size for a moment."""
         r = client_rect(self.find())
-        return r if r and r[2] > 0 and r[3] > 0 else None
+        if not r or r[2] <= 0 or r[3] <= 0:
+            return None
+        m = monitor_rect(self.hwnd)
+        if m:
+            x, y = max(r[0], m[0]), max(r[1], m[1])
+            right, bottom = min(r[0] + r[2], m[0] + m[2]), min(r[1] + r[3], m[1] + m[3])
+            if right > x and bottom > y:
+                r = (x, y, right - x, bottom - y)
+        return r
+
+    def scale(self) -> float:
+        """Windows' scale on the game's monitor (1.0 = 100 %)."""
+        return dpi_scale(self.find())
 
     def is_foreground(self) -> bool:
         return sys.platform == "win32" and bool(self.hwnd) and user32.GetForegroundWindow() == self.hwnd

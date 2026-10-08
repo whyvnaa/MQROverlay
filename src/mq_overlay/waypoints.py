@@ -16,7 +16,7 @@ import heapq
 import math
 from collections import deque
 
-from PySide6.QtCore import QPointF, QRect, QRectF, Qt
+from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import QColor, QFont, QPainter, QPainterPath, QPen, QPolygonF
 from PySide6.QtWidgets import QWidget
 
@@ -239,15 +239,16 @@ class ArrowWindow(QWidget):
         self.distance = 0.0
         self.other_path = False
 
-    def set_state(self, rect: QRect | None, direction: tuple[float, float] | None, label: str = "",
-                  other_path: bool = False, goal: str = "") -> None:
-        """Show the arrow over the game's client rect pointing along direction (world units), or hide it."""
+    def set_state(self, rect: tuple[int, int, int, int] | None, direction: tuple[float, float] | None,
+                  label: str = "", other_path: bool = False, goal: str = "") -> None:
+        """Show the arrow over the game's client rect (physical pixels) pointing along direction (world units), or
+        hide it."""
         if rect is None or direction is None:
             if self.isVisible():
                 self.hide()
             return
-        if self.geometry() != rect:
-            self.setGeometry(rect)
+        from .overlay import place
+        place(self, rect)
         self.direction, self.label, self.other_path, self.goal = direction, label, other_path, goal
         self.distance = math.hypot(*direction)
         if not self.isVisible():

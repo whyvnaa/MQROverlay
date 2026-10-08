@@ -10,6 +10,7 @@ Without a running game the full-screen map covers the screen under the mouse."""
 
 import json
 import math
+import sys
 from pathlib import Path
 
 from PySide6.QtCore import QEvent, QRect, QStandardPaths, Qt, QTimer
@@ -20,7 +21,7 @@ from PySide6.QtWidgets import (QApplication, QComboBox, QFrame, QHBoxLayout, QLa
 from .build_mode import BuildMode
 from .builder import Builder
 from .data import GameData
-from .game_window import GameWindow, bring_to_front, set_no_activate
+from .game_window import GameWindow, bring_to_front, move_window, set_no_activate, window_rect
 from .live import LiveState
 from .map_view import MapView
 from .player import PlayerState
@@ -117,6 +118,19 @@ def to_logical(x: int, y: int, w: int, h: int) -> QRect:
         if native.contains(x + w // 2, y + h // 2):
             return QRect(round(g.x() + (x - g.x()) / dpr), round(g.y() + (y - g.y()) / dpr), round(w / dpr), round(h / dpr))
     return QRect(x, y, w, h)
+
+
+def place(widget: QWidget, rect: tuple[int, int, int, int]) -> None:
+    """Put a top-level window at a rect in physical screen pixels. On Windows the window is moved with Windows' own
+    call: Qt's conversion went wrong when the game switched the display to a 4:3 resolution (the screen's scale and
+    the hidden window's scale disagreed, and the full map stuck out to the right)."""
+    hwnd = int(widget.winId()) if sys.platform == "win32" else None
+    now = window_rect(hwnd)
+    if now:
+        if now != tuple(rect):
+            move_window(hwnd, *rect)
+    elif widget.geometry() != (r := to_logical(*rect)):
+        widget.setGeometry(r)
 
 
 def section(text: str) -> QLabel:
@@ -381,7 +395,7 @@ class Overlay(QWidget):
         self.clear_btn.setVisible(self.mode == "full" and wp is not None)
         # the arrow over the game: on the corner map's side of things (the full map covers the game)
         rect = self.game.rect()
-        game = to_logical(*rect) if rect and self.game.is_visible() else None
+        game = rect if rect and self.game.is_visible() else None
         show = t is not None and me is not None and self.mode == "mini" and game is not None
         self.arrow.set_state(game if show else None, (t["x"] - me[0], t["y"] - me[1]) if show else None,
                              t["label"] if t else "",
@@ -654,11 +668,10 @@ class Overlay(QWidget):
 
     def track(self) -> None:
         self.update_waypoint()
-        rect = self.game.rect()
-        game = to_logical(*rect) if rect else None
+        game = self.game.rect()  # physical pixels
         if self.mode == "full":
             if game:
-                self.set_geometry(game)
+                place(self, game)
             elif not self.isVisible():
                 screen = QGuiApplication.screenAt(QCursor.pos()) or QGuiApplication.primaryScreen()
                 self.set_geometry(screen.availableGeometry())
@@ -667,13 +680,14 @@ class Overlay(QWidget):
             self.hide()
             return
         s = self.settings
-        w = round(game.width() * s["minimap_width"])
+        gx, gy, gw, gh = game
+        w = round(gw * s["minimap_width"])
         h = round(w * 0.62)
-        m = s["minimap_margin"]
+        m = round(s["minimap_margin"] * self.game.scale())
         corner = s["minimap_corner"]
-        x = game.left() + m if "left" in corner else game.right() + 1 - m - w
-        y = game.bottom() + 1 - m - h if "bottom" in corner else game.top() + m
-        self.set_geometry(QRect(x, y, w, h))
+        x = gx + m if "left" in corner else gx + gw - m - w
+        y = gy + gh - m - h if "bottom" in corner else gy + m
+        place(self, (x, y, w, h))
         if not self.isVisible():
             self.show()
 
