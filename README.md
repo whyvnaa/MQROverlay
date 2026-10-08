@@ -7,14 +7,17 @@ level from what you own.
 ## What you get
 
 - **A map in the corner of your game (F8)** that follows you around, with enemies, chests, portals and NPCs on it.
-  The yellow arrow next to your monkey points the way to your waypoint, here a chest five zones away.
 
-  ![The corner map at the top right and the yellow waypoint arrow in the game](docs/corner-map.jpg)
+  ![The corner map in the top right corner of the game](docs/corner-map.jpg)
 
-- **A full map (F7)** where you can search for anything: an enemy, an item drop, an NPC, a quest item. Click a spot
-  and a yellow arrow on your screen points the way, even through other zones.
+- **A full map (F7)** where you can search for anything: an enemy, an item drop, an NPC, a quest item.
 
   ![The full map with a search for chests](docs/full-map.png)
+
+- **A waypoint arrow**: click a spot on the full map and a yellow arrow next to your monkey points the way, zone by
+  zone and over the bridges between the front and back path.
+
+  ![The yellow arrow pointing to the bridge on the way to a chest five zones away](docs/arrow.jpg)
 
 - **A build tab** that looks at what you own and suggests the best gear for every level up to 60, and where to get
   what you're missing.
