@@ -29,3 +29,24 @@ def test_running_looks_at_the_process_names(monkeypatch):
     assert game_running() is True
     monkeypatch.setattr(game_launch, "GAME_PROCESSES", {"no-such-program-xyz.exe"})
     assert game_running() is False
+
+
+def test_quits_only_after_the_game_was_seen_and_stayed_gone():
+    from mq_overlay.game_launch import GameWatch
+    state = {"running": False, "t": 0.0}
+    w = GameWatch(grace=6, running=lambda: state["running"], clock=lambda: state["t"])
+    for t in (0, 10, 100):  # started without the game: never quits
+        state["t"] = t
+        assert not w.check()
+    state.update(running=True, t=110)
+    assert not w.check()
+    state.update(running=False, t=112)  # patcher hands over to the launcher: a short gap
+    assert not w.check()
+    state.update(running=True, t=114)
+    assert not w.check()
+    state.update(running=False, t=200)  # the game closed
+    assert not w.check()
+    state["t"] = 204
+    assert not w.check()
+    state["t"] = 206
+    assert w.check()

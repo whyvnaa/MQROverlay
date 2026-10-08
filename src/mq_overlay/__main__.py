@@ -7,11 +7,11 @@ from pathlib import Path
 
 from PySide6.QtCore import QTimer
 from PySide6.QtGui import QAction, QFontDatabase, QIcon
-from PySide6.QtWidgets import QApplication, QFileDialog, QMenu, QSystemTrayIcon
+from PySide6.QtWidgets import QApplication, QFileDialog, QMenu, QMessageBox, QSystemTrayIcon
 
 from .data import DATA, GameData
-from .game_launch import find_game, game_running, start_game
-from .game_window import GameWindow
+from .game_launch import GameWatch, find_game, game_running, start_game
+from .game_window import GameWindow, claim_instance
 from .capture import Sniffer
 from .hotkeys import Hotkeys
 from .live import LiveState
@@ -57,6 +57,11 @@ def main() -> int:
     QFontDatabase.addApplicationFont(str(DATA / "GROBOLD.ttf"))
     icon = QIcon(str(DATA / "icon.png"))
     app.setWindowIcon(icon)
+    instance = None if args.snapshot else claim_instance()  # held until the overlay quits
+    if not args.snapshot and instance is None:
+        QMessageBox.information(None, "MQ Overlay", "MQ Overlay is already running: its banana icon is in the "
+                                "taskbar's notification area (click it for the full-screen map).")
+        return 0
 
     data = GameData()
     settings = load_settings(data)
@@ -188,6 +193,20 @@ def main() -> int:
     game_action = QAction(f"Game: {game_exe.name}" if game_exe else "Choose the game…", menu, triggered=choose_game)
     game_action.setToolTip("Which program starts the game (found by itself when MQReborn is installed the usual way)")
     menu.addActions([start_action, game_action])
+
+    # closing the game closes the overlay too (after the game was seen; an overlay without the game stays)
+    watch = GameWatch()
+
+    def set_quit_with_game(on: bool) -> None:
+        settings["quit_with_game"] = on
+        watch.reset()
+        overlay.store_settings()
+    quit_with_action = QAction("Quit when the game closes", menu, checkable=True, checked=bool(settings["quit_with_game"]))
+    quit_with_action.toggled.connect(set_quit_with_game)
+    menu.addAction(quit_with_action)
+    game_watch = QTimer(interval=2000)
+    game_watch.timeout.connect(lambda: settings["quit_with_game"] and watch.check() and app.quit())
+    game_watch.start()
     menu.addSeparator()
     menu.addAction(quit_)
     tray.setContextMenu(menu)

@@ -33,12 +33,18 @@ Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
 ArchitecturesInstallIn64BitMode=x64compatible
+; the running overlay holds this mutex (game_window.APP_MUTEX): setup and uninstall ask to close it first
+AppMutex=MQOverlay
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a &desktop icon"; GroupDescription: "Shortcuts:"
+
+[InstallDelete]
+; an update replaces the whole program: files an older version had and this one doesn't must not stay behind
+Type: filesandordirs; Name: "{app}\_internal"
 
 [Files]
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs

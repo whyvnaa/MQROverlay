@@ -144,6 +144,23 @@ def dpi_scale(hwnd) -> float:
     return (GetDpiForWindow(hwnd) or 96) / 96
 
 
+APP_MUTEX = "MQOverlay"  # also in tools/installer.iss (AppMutex): setup waits until the overlay is closed
+
+
+def claim_instance():
+    """A named mutex for this running overlay: the handle (keep it while the overlay runs), or None when another
+    overlay already holds it. Off Windows always a handle stand-in."""
+    if sys.platform != "win32":
+        return True
+    kernel32.CreateMutexW.restype = wintypes.HANDLE
+    kernel32.CreateMutexW.argtypes = [ctypes.c_void_p, wintypes.BOOL, wintypes.LPCWSTR]
+    handle = kernel32.CreateMutexW(None, False, APP_MUTEX)
+    if ctypes.get_last_error() == 183:  # ERROR_ALREADY_EXISTS
+        kernel32.CloseHandle(handle)
+        return None
+    return handle
+
+
 class GameWindow:
     """Caches the game's window handle; find() is cheap when the window still exists."""
 

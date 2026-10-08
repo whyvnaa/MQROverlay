@@ -7,6 +7,7 @@ default install folder. Windows only."""
 import os
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 GAME_PROCESSES = {"monkeyquest.exe", "mqreborn patcher.exe", "mqreborn launcher.exe"}
@@ -79,6 +80,33 @@ def game_running() -> bool:
         return False
     finally:
         k32.CloseHandle(snap)
+
+
+class GameWatch:
+    """When to quit with the game (the user 2026-10-08: closing the game closes the overlay): once the game, its
+    launcher or its patcher has been seen running, and then none of them has run for `grace` seconds. The grace
+    covers the patcher handing over to the launcher and the launcher to the game. An overlay started without the
+    game never quits by itself."""
+
+    def __init__(self, grace: float = 6.0, running=game_running, clock=time.monotonic):
+        self.grace, self.running, self.clock = grace, running, clock
+        self.seen = False
+        self.gone_since: float | None = None
+
+    def reset(self) -> None:
+        self.gone_since = None
+
+    def check(self) -> bool:
+        """True when it is time to quit."""
+        now = self.clock()
+        if self.running():
+            self.seen, self.gone_since = True, None
+            return False
+        if not self.seen:
+            return False
+        if self.gone_since is None:
+            self.gone_since = now
+        return now - self.gone_since >= self.grace
 
 
 def start_game(exe: Path) -> bool:
