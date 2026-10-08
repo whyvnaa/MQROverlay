@@ -17,7 +17,7 @@ jobs:
       - name: Run the tests
         run: uv run --group build pytest -q
       - name: Build the installer and the zip
-        run: uv run --group build tools/build_exe.py --version ${{ github.ref_name }} --installer
+        run: uv run --group build tools/build_exe.py --version ${{ github.ref_name }} --installer --own-bootloader
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
