@@ -14,6 +14,11 @@ level from what you own.
 
   ![The full map with a search for chests](docs/full-map.png)
 
+- **Drops on every marker**: point at a chest, an enemy or a gathering spot to see everything it can drop and how
+  likely. Right-click opens its page on the wiki.
+
+  ![A chest's drops with their chances when you point at it on the map](docs/drops.png)
+
 - **A waypoint arrow**: click a spot on the full map and a yellow arrow next to your monkey points the way, zone by
   zone and over the bridges between the front and back path.
 
