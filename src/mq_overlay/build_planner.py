@@ -53,10 +53,11 @@ ATTACK_ACTIONS = ("Melee", "Throw", "DamageZone")
 MIX = "mix"  # attack element of a general build: the zones around your level
 WEAPON_CLASSES = ("melee", "ranged")
 SIDE_WEIGHT = 0.02  # a build style (Profile.prefer): how much the other hotbar weapon's kill time still counts
-DAMAGE_FLOOR = 0.10  # share of the enemy's ability power you always take (stand-in for MQReborn's minimum, UNVERIFIED)
-# The Badge Book's defence bonus is shown in the stats window but did not reduce a Fire enemy's hits with a Shadow
-# badge (in-game 2026-10-11: hit = attack − base − armour exactly). Whether it counts against the badge's own element
-# is open (OPEN_QUESTIONS M20); until then it counts against nothing.
+# The share of the enemy's attack you always take (MQReborn's minimum damage, 1.7.5). In-game 2026-10-11: a level 24
+# enemy (attack 909) hit for 43-51 (mean 48) through 947 defence, so about 5 % (equally 2 x its level; M18).
+DAMAGE_FLOOR = 0.05
+# The Badge Book's defence bonus is shown in the stats window but never reduces a hit (in-game 2026-10-11: a Fire
+# dragon hit for 747 with a Shadow badge and still 747 with an Outlaw badge showing +187 Fire defence; M20 answered).
 BADGE_DEFENCE_COUNTS = False
 REFERENCE_COOLDOWN = 1.0
 LEVEL_CAP = 60  # the last level: what you wear there you keep for good
