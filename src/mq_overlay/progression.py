@@ -52,12 +52,13 @@ class Timeline(QWidget):
         super().__init__()
         self.icon_for = icon_for
         self.prog, self.level, self.mine, self.owned, self.rows = None, 1, 1, {}, []
+        self.off = None  # prefab -> the sources you switched off (Costs.switched_off), for items without a way
         self.setMouseTracking(True)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setMinimumHeight(self.TOP + 9 * self.LANE + 8)
 
-    def set_data(self, prog: dict, level: int, mine: int, owned: dict) -> None:
-        self.prog, self.level, self.mine, self.owned = prog, level, mine, owned
+    def set_data(self, prog: dict, level: int, mine: int, owned: dict, off=None) -> None:
+        self.prog, self.level, self.mine, self.owned, self.off = prog, level, mine, owned, off
         self.rows = ([("Badge", prog["badges"])] if prog["tribe"] == AUTO else []) + list(prog["lanes"].items())
         self.setFixedHeight(self.TOP + len(self.rows) * self.LANE + 8)
         self.update()
@@ -154,8 +155,9 @@ class Timeline(QWidget):
                 text = f"Badge in {seg['tribe']}: {span}"
             else:
                 it = seg["item"]
-                have = ("you have it" if self.owned.get(it["prefab"]) else "no known way to get it"
-                        if math.isinf(seg["hours"]) else f"{duration(seg['hours'])} to get")
+                off = self.off(it["prefab"]) if self.off and math.isinf(seg["hours"]) else []
+                have = ("you have it" if self.owned.get(it["prefab"]) else f"left out: {', '.join(off)} off" if off
+                        else "no known way to get it" if math.isinf(seg["hours"]) else f"{duration(seg['hours'])} to get")
                 text = f"{label}: {it['name']}\nBest from {span} · {have}"
             QToolTip.showText(event.globalPosition().toPoint(), text, self)
         elif level:
@@ -313,7 +315,7 @@ class Progression(QWidget):
     def set_level(self, level: int) -> None:
         self.level = max(1, min(60, level))
         if self.prog:
-            self.timeline.set_data(self.prog, self.level, self.profile.level, self.profile.owned)
+            self.timeline.set_data(self.prog, self.level, self.profile.level, self.profile.owned, self.costs.switched_off)
             self.show_stage()
         self.changed.emit()
 
@@ -332,7 +334,7 @@ class Progression(QWidget):
             finally:
                 QApplication.restoreOverrideCursor()
         self.prog = self.cache[key]
-        self.timeline.set_data(self.prog, self.level, self.profile.level, self.profile.owned)
+        self.timeline.set_data(self.prog, self.level, self.profile.level, self.profile.owned, self.costs.switched_off)
         self.show_stage()
 
     # ---------------------------------------------------------------- the level's card
@@ -388,8 +390,10 @@ class Progression(QWidget):
     def slot(self, body: QVBoxLayout, label: str, rows: list[dict]) -> None:
         ways = [r for r in rows if r["hours"] is not None]
         none = [r for r in rows if r["hours"] is None]
+        off = sum(1 for r in none if self.costs.switched_off(r["item"]["prefab"]))  # sources you switched off
         lab = QLabel(f"{label} <span style='font-family:Nunito; font-size:11px; color:{GREY}'>"
-                     f"{len(ways)} to choose from" + (f", {len(none)} more with no known way" if none else "") + "</span>",
+                     f"{len(ways)} to choose from" + (f", {len(none) - off} more with no known way" if len(none) > off else "")
+                     + (f", {off} left out under Items from" if off else "") + "</span>",
                      objectName="section")
         lab.setTextFormat(Qt.TextFormat.RichText)
         body.addWidget(lab)
@@ -445,8 +449,11 @@ class Progression(QWidget):
         tags.append(grey(f"level {it['level_req'] or 1}"))
         way = None if r["hours"] is None else self.costs.best(it["prefab"], p)
         kind, grade = effort(way, r["hours"])
+        off = [] if r["owned"] or r["hours"] is not None else self.costs.switched_off(it["prefab"])
         if r["owned"]:
             right = c("gain", "have")
+        elif off:  # not unknown: you switched its sources off under "Items from"
+            right = c("loss", "left out") + " " + grey(", ".join(off) + " off")
         elif r["hours"] is None:
             right = c("loss", "no known way")
         else:
@@ -467,6 +474,8 @@ class Progression(QWidget):
         how = ""
         if way is not None and way.kind != "owned":
             how = grey((f"{grade}: " if grade else "") + way_short(way))
+        elif off:
+            how = grey("Switched off under Items from: " + ", ".join(off))
         place = None
         if way is not None and way.where and way.where[0].get("zone"):
             place = dict(way.where[0])

@@ -469,6 +469,29 @@ class Costs:
             return "pattern"
         return None
 
+    SOURCE_WORDS = {"vendor": "vendors", "nick_cash": "the NickCash shop", "chest": "chests", "enemy": "enemies",
+                    "craft": "crafting", "quest": "quests"}
+
+    def switched_off(self, prefab: str) -> list[str]:
+        """The item's sources that the chosen sources leave out, in the words of the "Items from" setting ("the
+        NickCash shop", "chests", ...): when best() finds no way, this tells whether the item is really unknown
+        (empty: why_not()) or you have just switched its sources off (Typhoon Stars with the NickCash shop off)."""
+        if self.why_not(prefab):
+            return []
+        out: list[str] = []
+        for r in self.b["ways"].get(prefab, []):
+            k = r["kind"]
+            if k == "vendor":
+                if r.get("currency") == "Promo":
+                    continue  # not something you can go and get
+                key, off = ("nick_cash", not self.eco.nick_cash) if r.get("currency") == "NickCash" else ("vendor", k not in self.eco.sources)
+            else:
+                key, off = ("enemy" if k == "tribe_drop" else k), k not in self.eco.sources
+            word = self.SOURCE_WORDS.get(key)
+            if off and word and word not in out:
+                out.append(word)
+        return out
+
 
 def effort(way: Way | None, hours: float | None) -> tuple[str, str]:
     """How an item is got and how hard that is, in a few words: ("buy", "easy"), ("enemy drop", "long farm"), ..."""
