@@ -54,6 +54,10 @@ MIX = "mix"  # attack element of a general build: the zones around your level
 WEAPON_CLASSES = ("melee", "ranged")
 SIDE_WEIGHT = 0.02  # a build style (Profile.prefer): how much the other hotbar weapon's kill time still counts
 DAMAGE_FLOOR = 0.10  # share of the enemy's ability power you always take (stand-in for MQReborn's minimum, UNVERIFIED)
+# The Badge Book's defence bonus is shown in the stats window but did not reduce a Fire enemy's hits with a Shadow
+# badge (in-game 2026-10-11: hit = attack − base − armour exactly). Whether it counts against the badge's own element
+# is open (OPEN_QUESTIONS M20); until then it counts against nothing.
+BADGE_DEFENCE_COUNTS = False
 REFERENCE_COOLDOWN = 1.0
 LEVEL_CAP = 60  # the last level: what you wear there you keep for good
 CAP_WEIGHT = 1e6  # progression: how much the last level counts against any other (stands in for "forever")
@@ -552,7 +556,7 @@ class Planner:
 
     def taken(self, armour: list[dict], p: Profile, badge_def: int) -> float:
         _, _, enemy_ap = self.enemy(p)
-        base = self.opt.stat("Defence", "Player", p.level) + badge_def
+        base = self.opt.stat("Defence", "Player", p.level) + (badge_def if BADGE_DEFENCE_COUNTS else 0)
         total = 0.0
         for el, share in self.attack_mix(p).items():
             d = base + sum(self.opt.armour_score(a, el) for a in armour)
@@ -698,7 +702,7 @@ class Planner:
                                            p.skill_points)
             armour = [build[SLOT_NAMES[s]] for s in DEFENCE_SLOTS if build.get(SLOT_NAMES[s])]
             _, _, enemy_ap = self.enemy(p)
-            base = self.opt.stat("Defence", "Player", p.level) + bdef
+            base = self.opt.stat("Defence", "Player", p.level) + (bdef if BADGE_DEFENCE_COUNTS else 0)
             ev["taken_by"] = {el: max(DAMAGE_FLOOR * enemy_ap, enemy_ap - base - sum(self.opt.armour_score(a, el) for a in armour))
                               for el in self.attack_mix(p)}
             ev["item"] = build.get(slot)
@@ -853,7 +857,7 @@ class Planner:
         """Damage taken a hit at p's level per attack element (None = blunt), plus "mix": where you fight (the
         attack mix of the profile)."""
         _, _, enemy_ap = self.enemy(p)
-        base = self.opt.stat("Defence", "Player", p.level) + badge_def
+        base = self.opt.stat("Defence", "Player", p.level) + (badge_def if BADGE_DEFENCE_COUNTS else 0)
         out = {el: max(DAMAGE_FLOOR * enemy_ap, enemy_ap - base - sum(self.opt.armour_score(a, el) for a in armour))
                for el in ELEMENTS + [None]}
         out["mix"] = sum(share * out[el] for el, share in self.attack_mix(p).items())
